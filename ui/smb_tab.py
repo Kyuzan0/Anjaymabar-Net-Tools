@@ -17,6 +17,7 @@ from utils.powershell import (
     set_smb_insecure_guest_auth, get_smb_insecure_guest_auth, log_debug
 )
 from .toggle_switch import ToggleSwitch
+from .loading_overlay import LoadingOverlay
 
 
 # Default secure SMB configuration values
@@ -108,6 +109,9 @@ class SMBTab(QWidget):
         # Set scroll content
         scroll_area.setWidget(scroll_content)
         main_layout.addWidget(scroll_area)
+        
+        # Create loading overlay (must be created after main layout)
+        self.loading_overlay = LoadingOverlay(self)
     
     def _create_config_group(self):
         """Create the SMB Configuration group box."""
@@ -489,7 +493,11 @@ class SMBTab(QWidget):
         if self._loading:
             return
         
+        # Show loading overlay in center of screen
+        self.loading_overlay.show("Applying Guest Logons setting...")
         self.set_toggles_enabled(False)
+        QApplication.processEvents()
+        
         state = "ENABLED" if checked else "DISABLED"
         
         # Method 1: Try PowerShell cmdlet first
@@ -517,6 +525,7 @@ class SMBTab(QWidget):
                     self.client_sig_toggle.isChecked(),
                     self.server_sig_toggle.isChecked()
                 )
+                self.loading_overlay.hide()
                 self.set_toggles_enabled(True)
                 return
         
@@ -539,6 +548,7 @@ class SMBTab(QWidget):
                     self.client_sig_toggle.isChecked(),
                     self.server_sig_toggle.isChecked()
                 )
+                self.loading_overlay.hide()
                 self.set_toggles_enabled(True)
                 return
             else:
@@ -560,6 +570,7 @@ class SMBTab(QWidget):
             self.append_output("ℹ Make sure the application is running as Administrator.")
             log_debug(f"Registry set failed: {reg_stderr}")
         
+        self.loading_overlay.hide()
         self.set_toggles_enabled(True)
     
     def on_client_sig_toggle_changed(self, checked: bool):
@@ -567,7 +578,11 @@ class SMBTab(QWidget):
         if self._loading:
             return
         
+        # Show loading overlay in center of screen
+        self.loading_overlay.show("Applying Client Signature setting...")
         self.set_toggles_enabled(False)
+        QApplication.processEvents()
+        
         value = "$true" if checked else "$false"
         cmd = f"Set-SmbClientConfiguration -RequireSecuritySignature {value} -Force -Confirm:$false"
         success, stdout, stderr = run_powershell_command(cmd)
@@ -614,6 +629,7 @@ class SMBTab(QWidget):
             self.update_status("Failed to change Client Security Signature", False)
             self.append_output(f"✗ Error: {stderr if stderr else 'Unknown error'}")
         
+        self.loading_overlay.hide()
         self.set_toggles_enabled(True)
     
     def on_server_sig_toggle_changed(self, checked: bool):
@@ -621,7 +637,11 @@ class SMBTab(QWidget):
         if self._loading:
             return
         
+        # Show loading overlay in center of screen
+        self.loading_overlay.show("Applying Server Signature setting...")
         self.set_toggles_enabled(False)
+        QApplication.processEvents()
+        
         value = "$true" if checked else "$false"
         cmd = f"Set-SmbServerConfiguration -RequireSecuritySignature {value} -Force -Confirm:$false"
         success, stdout, stderr = run_powershell_command(cmd)
@@ -668,6 +688,7 @@ class SMBTab(QWidget):
             self.update_status("Failed to change Server Security Signature", False)
             self.append_output(f"✗ Error: {stderr if stderr else 'Unknown error'}")
         
+        self.loading_overlay.hide()
         self.set_toggles_enabled(True)
     
     def reset_to_default(self):
