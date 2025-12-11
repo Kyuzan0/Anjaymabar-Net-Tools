@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
         self.network_tab = NetworkTab()
         self.firewall_tab = FirewallTab()
         
-        self.tab_widget.addTab(self.smb_tab, "🔗 SMB Conf")
+        self.tab_widget.addTab(self.smb_tab, "🔗 SMB Settings")
         self.tab_widget.addTab(self.network_tab, "🌐 Network Settings")
         self.tab_widget.addTab(self.firewall_tab, "🛡️ Firewall Settings")
         
