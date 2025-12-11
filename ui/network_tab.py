@@ -464,7 +464,9 @@ class NetworkTab(QWidget):
                 dhcp_data = json.loads(stdout)
                 if isinstance(dhcp_data, list):
                     dhcp_data = dhcp_data[0] if dhcp_data else {}
-                dhcp_enabled = dhcp_data.get('Dhcp', '') == 'Enabled'
+                dhcp_value = dhcp_data.get('Dhcp', 0)
+                # DHCP value can be numeric (1=Enabled, 0=Disabled) or string
+                dhcp_enabled = dhcp_value == 1 or str(dhcp_value).lower() == 'enabled'
                 
                 if dhcp_enabled:
                     self.dhcp_radio.setChecked(True)
