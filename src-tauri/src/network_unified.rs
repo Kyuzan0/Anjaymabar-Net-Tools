@@ -1,7 +1,7 @@
 //! Unified network configuration query
 //! Combines all 4 PowerShell queries into a single script for efficiency
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 

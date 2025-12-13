@@ -166,7 +166,7 @@ export function FirewallTab() {
                         variant="primary"
                         onClick={handleEnableAll}
                         loading={saving === 'all'}
-                        className="!bg-green-600 hover:!bg-green-700 flex-1"
+                        className="bg-green-600! hover:bg-green-700! flex-1"
                     >
                         <ShieldCheck className="w-5 h-5" />
                         Enable All Profiles
@@ -175,7 +175,7 @@ export function FirewallTab() {
                         variant="secondary"
                         onClick={handleDisableAll}
                         loading={saving === 'all'}
-                        className="!bg-red-600/20 !border-red-500/30 hover:!bg-red-600/40 flex-1"
+                        className="bg-red-600/20! border-red-500/30! hover:bg-red-600/40! flex-1"
                     >
                         <ShieldOff className="w-5 h-5" />
                         Disable All Profiles
