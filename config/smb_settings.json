@@ -1,6 +1,0 @@
-{
-  "insecure_guest_logons": false,
-  "client_require_security_signature": true,
-  "server_require_security_signature": true,
-  "last_updated": null
-}
