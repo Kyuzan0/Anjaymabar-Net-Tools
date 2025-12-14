@@ -32,6 +32,10 @@ export async function restartSMBService(): Promise<string> {
     return await invoke<string>('restart_smb_service');
 }
 
+export async function openAdvancedSharing(): Promise<string> {
+    return await invoke<string>('open_advanced_sharing');
+}
+
 export interface SmbShare {
     name: string;
     path: string;

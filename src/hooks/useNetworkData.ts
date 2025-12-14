@@ -50,6 +50,8 @@ interface UseNetworkDataReturn extends UseNetworkDataState {
     invalidateCache: () => void;
     /** Manually refetch current config without debounce */
     refetchConfig: () => Promise<void>;
+    /** Prefetch adapter config on hover (for instant switching) */
+    prefetchAdapter: (adapterName: string) => void;
 }
 
 /**
@@ -173,7 +175,7 @@ export function useNetworkData(): UseNetworkDataReturn {
 
             // Try to get stale cache for fallback
             const [staleConfig] = cache.getCachedIPConfigWithStale(adapterName);
-            
+
             setState(prev => ({
                 ...prev,
                 currentConfig: staleConfig, // May be null or stale data
@@ -228,7 +230,7 @@ export function useNetworkData(): UseNetworkDataReturn {
                     // Set first adapter if none selected
                     selectedAdapter: prev.selectedAdapter || cachedAdapters[0].name,
                 }));
-                
+
                 // Trigger config load for selected adapter
                 if (!state.selectedAdapter && cachedAdapters.length > 0) {
                     currentAdapterRef.current = cachedAdapters[0].name;
@@ -315,15 +317,15 @@ export function useNetworkData(): UseNetworkDataReturn {
      */
     useEffect(() => {
         isMountedRef.current = true;
-        
+
         return () => {
             isMountedRef.current = false;
-            
+
             // Cleanup timeouts
             if (debounceTimeoutRef.current) {
                 clearTimeout(debounceTimeoutRef.current);
             }
-            
+
             // Cancel any in-flight requests
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
@@ -331,12 +333,34 @@ export function useNetworkData(): UseNetworkDataReturn {
         };
     }, []);
 
+    /**
+     * Prefetch adapter config in background (for hover prefetching)
+     * Doesn't update state, just populates cache
+     */
+    const prefetchAdapter = useCallback((adapterName: string) => {
+        // Skip if already cached or if it's the current adapter
+        if (cache.getCachedIPConfig(adapterName) || adapterName === currentAdapterRef.current) {
+            return;
+        }
+
+        // Fetch in background, store in cache only
+        invoke<IPConfiguration>('get_ip_configuration_unified', {
+            adapterName: adapterName,
+        }).then(config => {
+            cache.setCachedIPConfig(adapterName, config);
+            console.log(`[Prefetch] Cached config for ${adapterName}`);
+        }).catch(() => {
+            // Silently fail for prefetch - it's just an optimization
+        });
+    }, [cache]);
+
     return {
         ...state,
         selectAdapter,
         refreshAdapters,
         invalidateCache,
         refetchConfig,
+        prefetchAdapter,
     };
 }
 

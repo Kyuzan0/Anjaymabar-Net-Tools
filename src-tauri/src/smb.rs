@@ -311,3 +311,14 @@ pub fn unmap_network_drive(drive_letter: String) -> Result<String, String> {
         Err(stderr.to_string())
     }
 }
+
+/// Open Advanced Sharing Settings
+#[tauri::command]
+pub fn open_advanced_sharing() -> Result<String, String> {
+    Command::new("cmd")
+        .creation_flags(CREATE_NO_WINDOW)
+        .args(["/c", "control", "/name", "Microsoft.NetworkAndSharingCenter", "/page", "Advanced"])
+        .spawn()
+        .map_err(|e| format!("Failed to open Advanced Sharing Settings: {}", e))?;
+    Ok("Opened Advanced Sharing Settings".to_string())
+}

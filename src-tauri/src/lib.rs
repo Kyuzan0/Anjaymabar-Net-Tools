@@ -33,6 +33,7 @@ pub fn run() {
             list_smb_shares,
             map_network_drive,
             unmap_network_drive,
+            open_advanced_sharing,
             // Admin Commands
             is_admin,
             request_elevation,

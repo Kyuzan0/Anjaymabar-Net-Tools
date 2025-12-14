@@ -8,6 +8,7 @@
  * - Automatic cleanup of expired entries
  * - Singleton pattern via module scope
  * - React 18 compatible with useSyncExternalStore
+ * - LocalStorage persistence for faster initial loads
  */
 
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
@@ -19,6 +20,12 @@ const DEFAULT_TTL_MS = 30000;
 // Cache cleanup interval: 60 seconds
 const CLEANUP_INTERVAL_MS = 60000;
 
+// LocalStorage key for persistent cache
+const STORAGE_KEY = 'network_cache_v1';
+
+// Maximum age for persistent cache: 5 minutes (after this, data is considered too stale)
+const MAX_PERSISTENT_AGE_MS = 5 * 60 * 1000;
+
 /**
  * Cache entry structure with timestamp for TTL validation
  */
@@ -26,6 +33,15 @@ export interface CacheEntry<T> {
     data: T;
     timestamp: number;
     ttl: number;
+}
+
+/**
+ * Structure for persisted cache data in localStorage
+ */
+interface PersistedCacheData {
+    configs: Record<string, { data: IPConfiguration; timestamp: number; ttl: number }>;
+    adapters: { data: Array<{ name: string; description: string; status: string; mac_address: string }>; timestamp: number; ttl: number } | null;
+    savedAt: number;
 }
 
 /**
@@ -40,8 +56,92 @@ class NetworkCacheStore {
     private version = 0; // For snapshot comparison
 
     constructor() {
+        // Load from localStorage on init
+        this.loadFromStorage();
         // Start cleanup interval
         this.startCleanup();
+    }
+
+    /**
+     * Load cache data from localStorage
+     */
+    private loadFromStorage(): void {
+        if (typeof window === 'undefined') return;
+
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) return;
+
+            const data: PersistedCacheData = JSON.parse(stored);
+            const now = Date.now();
+
+            // Check if persistent cache is too old
+            if (now - data.savedAt > MAX_PERSISTENT_AGE_MS) {
+                console.log('[NetworkCache] Persistent cache expired, clearing');
+                localStorage.removeItem(STORAGE_KEY);
+                return;
+            }
+
+            // Load IP configs
+            if (data.configs) {
+                for (const [key, entry] of Object.entries(data.configs)) {
+                    // Adjust timestamp to be relative to now for fresh TTL check
+                    const adjustedEntry: CacheEntry<IPConfiguration> = {
+                        data: entry.data,
+                        timestamp: entry.timestamp,
+                        ttl: entry.ttl,
+                    };
+                    this.cache.set(key, adjustedEntry);
+                }
+            }
+
+            // Load adapters
+            if (data.adapters) {
+                this.adapterCache = {
+                    data: data.adapters.data,
+                    timestamp: data.adapters.timestamp,
+                    ttl: data.adapters.ttl,
+                };
+            }
+
+            console.log(`[NetworkCache] Loaded ${this.cache.size} configs from localStorage`);
+        } catch (error) {
+            console.warn('[NetworkCache] Failed to load from localStorage:', error);
+            localStorage.removeItem(STORAGE_KEY);
+        }
+    }
+
+    /**
+     * Save cache data to localStorage
+     */
+    private saveToStorage(): void {
+        if (typeof window === 'undefined') return;
+
+        try {
+            const configs: Record<string, { data: IPConfiguration; timestamp: number; ttl: number }> = {};
+
+            for (const [key, entry] of this.cache.entries()) {
+                configs[key] = {
+                    data: entry.data,
+                    timestamp: entry.timestamp,
+                    ttl: entry.ttl,
+                };
+            }
+
+            const data: PersistedCacheData = {
+                configs,
+                adapters: this.adapterCache ? {
+                    data: this.adapterCache.data,
+                    timestamp: this.adapterCache.timestamp,
+                    ttl: this.adapterCache.ttl,
+                } : null,
+                savedAt: Date.now(),
+            };
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (error) {
+            console.warn('[NetworkCache] Failed to save to localStorage:', error);
+        }
     }
 
     /**
@@ -49,7 +149,7 @@ class NetworkCacheStore {
      */
     private startCleanup(): void {
         if (typeof window === 'undefined') return;
-        
+
         this.cleanupInterval = setInterval(() => {
             this.removeExpired();
         }, CLEANUP_INTERVAL_MS);
@@ -78,6 +178,7 @@ class NetworkCacheStore {
         if (hasChanges) {
             this.version++;
             this.notifyListeners();
+            this.saveToStorage();
         }
     }
 
@@ -100,9 +201,9 @@ class NetworkCacheStore {
      */
     getCachedIPConfig(adapterName: string): IPConfiguration | null {
         const entry = this.cache.get(adapterName);
-        
+
         if (!entry) return null;
-        
+
         if (this.isExpired(entry)) {
             // Entry expired, but don't delete yet (stale-while-revalidate)
             return null;
@@ -117,9 +218,9 @@ class NetworkCacheStore {
      */
     getCachedIPConfigWithStale(adapterName: string): [IPConfiguration | null, boolean] {
         const entry = this.cache.get(adapterName);
-        
+
         if (!entry) return [null, false];
-        
+
         const isStale = this.isExpired(entry);
 
         return [entry.data, isStale];
@@ -134,10 +235,11 @@ class NetworkCacheStore {
             timestamp: Date.now(),
             ttl,
         };
-        
+
         this.cache.set(adapterName, entry);
         this.version++;
         this.notifyListeners();
+        this.saveToStorage();
     }
 
     /**
@@ -145,7 +247,7 @@ class NetworkCacheStore {
      */
     getCachedAdapters(): Array<{ name: string; description: string; status: string; mac_address: string }> | null {
         if (!this.adapterCache) return null;
-        
+
         if (this.isExpired(this.adapterCache)) {
             return null;
         }
@@ -164,6 +266,7 @@ class NetworkCacheStore {
         };
         this.version++;
         this.notifyListeners();
+        this.saveToStorage();
     }
 
     /**
@@ -174,6 +277,7 @@ class NetworkCacheStore {
             this.cache.delete(adapterName);
             this.version++;
             this.notifyListeners();
+            this.saveToStorage();
         }
     }
 
@@ -185,6 +289,10 @@ class NetworkCacheStore {
         this.adapterCache = null;
         this.version++;
         this.notifyListeners();
+        // Also clear localStorage
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem(STORAGE_KEY);
+        }
     }
 
     /**
@@ -321,7 +429,7 @@ export function useNetworkCache() {
          * Get cached adapter names
          */
         keys: networkCacheStore.keys,
-        
+
         /**
          * Cache version for dependency tracking
          */

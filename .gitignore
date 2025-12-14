@@ -25,3 +25,6 @@ dist-ssr
 
 # Documentation output
 docs/
+
+# VSCode
+.vscode/

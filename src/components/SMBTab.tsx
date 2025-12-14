@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, AlertTriangle, RefreshCw, RotateCcw, Loader2, Folder, FolderOpen, ChevronUp } from 'lucide-react';
+import { Shield, AlertTriangle, RefreshCw, RotateCcw, Loader2, Folder, FolderOpen, ChevronUp, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card } from './UI/Card';
 import { ToggleSwitch } from './UI/ToggleSwitch';
@@ -15,6 +15,7 @@ import {
     testSMBConnection,
     listSMBShares,
     openSmbPath,
+    openAdvancedSharing,
     type SMBSettings,
     type SmbShare
 } from '../lib/tauri';
@@ -304,9 +305,19 @@ export function SMBTab() {
             className="p-6 space-y-6 overflow-y-auto"
         >
             {/* Header */}
-            <div className="flex items-center gap-3">
-                <Shield className="w-8 h-8 text-primary" />
-                <h2 className="text-2xl font-bold text-white">SMB Configuration</h2>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Shield className="w-8 h-8 text-primary" />
+                    <h2 className="text-2xl font-bold text-white">SMB Configuration</h2>
+                </div>
+                <Button
+                    variant="secondary"
+                    onClick={() => openAdvancedSharing()}
+                    title="Open Windows Advanced Sharing Settings"
+                >
+                    <Settings className="w-4 h-4" />
+                    Advanced Sharing
+                </Button>
             </div>
 
             {/* Settings Card */}
